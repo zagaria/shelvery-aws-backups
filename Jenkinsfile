@@ -11,20 +11,10 @@ pipeline {
 
   stages {
 
-    stage('Init') {
-      agent {
-        label 'docker'
-      }
-      steps {
-        sh 'sudo git clean -d -x -f'
-      }
-    }
-
     stage('Static Code Analysis') {
       agent {
         docker {
           image 'python:3'
-          args '-u 0'
         }
       }
 
@@ -32,7 +22,7 @@ pipeline {
         echo "Shelvery pipeline: Static Code Analysis"
 
         sh """#!/bin/sh
-pip install prospector
+pip install prospector --user
 
 # do not fail on static code analysis
 exit 0
@@ -45,7 +35,6 @@ exit 0
       agent {
         docker {
           image 'python:3'
-          args '-u 0'
         }
       }
 
@@ -54,7 +43,7 @@ exit 0
         //run united tests
         script {
             def testsRval = sh script:"""#!/bin/bash
-                pip install -r requirements.txt
+                pip install -r requirements.txt --user
                 export AWS_DEFAULT_REGION=us-east-1
                 set +e
                 python -m pytest --junit-xml=pytest_unit.xml shelvery_tests
@@ -81,8 +70,7 @@ which shelvery
     stage('Package') {
       agent {
         docker {
-          image 'python:3-alpine'
-          args '-u 0'
+          image 'python:3'
         }
       }
       steps {
