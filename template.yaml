@@ -259,6 +259,7 @@ Resources:
                 - sns:Publish*
               Resource:
                 - !Ref SnsTopic
+                - !Ref SnsTopicErrors
             - Effect: Allow
               Action:
                 - sqs:ChangeMessageVisibility

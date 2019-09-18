@@ -1,10 +1,19 @@
 import logging
 import json
+import os
 
 from shelvery.factory import ShelveryFactory
+from shelvery.queue import ShelveryQueue
+
+
 
 def lambda_handler(event, context):
 
+    sqs_url = os.environ['shelvery_sqs_queue_url']
+    sqs_wait = os.environ['shelvery_sqs_queue_wait_period']
+
+    sqs = ShelveryQueue(sqs_url,sqs_wait);
+    
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.info(f"Received event\n{json.dumps(event,indent=2)}")
@@ -35,7 +44,11 @@ def lambda_handler(event, context):
     method = backup_engine.__getattribute__(action)
 
     if 'arguments' in payload:
-        method(payload['arguments'])
+        try:
+           method(payload['arguments'])
+        except:
+           logger.info(f"Exception in action {action} for {backup_type}. Retry again (push message to queue again)")
+           sqs.send(payload);
     else:
         method()
 

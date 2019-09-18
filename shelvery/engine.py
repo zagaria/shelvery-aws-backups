@@ -490,6 +490,8 @@ class ShelveryEngine:
         Copy backup to another region, actual implementation
         """
 
+        success = True
+        
         kwargs.update(map_args)
         backup_id = kwargs['BackupId']
         origin_region = kwargs['OriginRegion']
@@ -554,6 +556,7 @@ class ShelveryEngine:
                 'BackupId': kwargs['BackupId'],
             })
             self.logger.exception(f"Error copying backup {kwargs['BackupId']} to {dst_region}")
+            success = False
 
         # shared backup copy with same accounts
         for shared_account_id in RuntimeConfig.get_share_with_accounts(self):
@@ -581,6 +584,9 @@ class ShelveryEngine:
                     'BackupId': kwargs['BackupId'],
                 })
                 self.logger.exception(f"Error sharing copied backup {kwargs['BackupId']} to {dst_region}")
+                success = False
+        if not success:
+            raise Exception("Copies errors!")
 
     def do_share_backup(self, map_args={}, **kwargs):
         """Share backup with other AWS account, actual implementation"""
