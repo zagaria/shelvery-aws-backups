@@ -1,7 +1,47 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Shelvery
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Deploy parameters"
+        Parameters:
+          - DeployTime
+          - CodeS3Bucket
+          - CodeS3BucketPath
+      -
+        Label:
+          default: "Shelvery parameters"
+        Parameters:
+          - CreateBucketsSchedule
+          - CreateBackupSchedule
+          - CleanBackupsSchedule
+          - PullSharedBackupsSchedule
+          - S3BackupSchedule
+          - ShelveryKeepDailyBackups
+          - ShelveryKeepWeeklyBackups
+          - ShelveryKeepMonthlyBackups
+          - ShelveryKeepYearlyBackups
+          - ShelverySourceAwsAccountIds
+          - ShelveryShareAwsAccountIds
+          - ShelveryRdsBackupMode
+          - ShelveryCustomRetentionTypes
+
 Parameters:
+
+  DeployTime:
+    Type: String
+    AllowedValues:
+      - now
+      - later
+    Default: later
+    Description: Please use "now" for deploy
+  CodeS3Bucket:
+    Type: String
+  CodeS3BucketPath:
+    Type: String
+    
   CreateBucketsSchedule:
     Type: String
     Default: "0 0 ? * * *"
@@ -42,22 +82,28 @@ Parameters:
     Type: String
     Default: 'quarterHourly:86400,halfHourly:86400,hourly:86400'
 
+Conditions:
+  CreateResources: !Equals [ !Ref DeployTime, "now" ]
+    
 Resources:
 
   SnsTopic:
     Type: AWS::SNS::Topic
-    Properties:
-      TopicName: Shelvery-Notifications
+    Condition: CreateResources
+    #Properties:
+    #  TopicName: Shelvery-Notifications
 
   SnsTopicErrors:
     Type: AWS::SNS::Topic
-    Properties:
-      TopicName: Shelvery-Errors
+    Condition: CreateResources
+    #Properties:
+    #  TopicName: Shelvery-Errors
 
   ShelveryWaitQueue:
     Type: AWS::SQS::Queue
+    Condition: CreateResources
     Properties:
-      QueueName: Shelvery-Wait-Queue
+      #QueueName: Shelvery-Wait-Queue
       MessageRetentionPeriod: 3600
       VisibilityTimeout: 900 # must match function timeout
       RedrivePolicy:
@@ -71,8 +117,9 @@ Resources:
 
   ShelveryWaitDLQ:
     Type: AWS::SQS::Queue
+    Condition: CreateResources
     Properties:
-      QueueName: Shelvery-Wait-dlq
+      #QueueName: Shelvery-Wait-dlq
       MessageRetentionPeriod: 1209600
       Tags:
         - Key: Name
@@ -82,11 +129,14 @@ Resources:
 
   Shelvery:
     Type: AWS::Serverless::Function
+    Condition: CreateResources
     Properties:
-      FunctionName: ShelveryBackups
+      #FunctionName: ShelveryBackups
       Handler: shelvery_lambda/lambda_handler.lambda_handler
       Runtime: python3.6
-      CodeUri: ./lib/shelvery.zip
+      CodeUri:
+        Bucket: !Ref CodeS3Bucket
+        Key: !Ref CodeS3BucketPath
       Timeout: 900
 
       Tags:
@@ -272,6 +322,7 @@ Resources:
 
   ShelveryErrors:
     Type: AWS::CloudWatch::Alarm
+    Condition: CreateResources
     Properties:
       AlarmDescription: If Shelvery errors is equal to 1 for 5 minutes
       Namespace: AWS/Lambda
